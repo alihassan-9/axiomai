@@ -1,6 +1,6 @@
 # API
-fastapi==0.111.0
-uvicorn[standard]==0.30.1
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
 gunicorn==22.0.0
 python-multipart==0.0.9
 sse-starlette==2.1.2
@@ -19,7 +19,7 @@ passlib[bcrypt]==1.7.4
 # passlib 1.7.4 reads bcrypt.__about__.__version__, removed in bcrypt>=4.1 — pin to 4.0.x.
 bcrypt==4.0.1
 pydantic==2.8.2
-pydantic-settings==2.3.4
+pydantic-settings==2.6.1
 email-validator==2.2.0
 
 # Storage
@@ -43,7 +43,7 @@ langchain==0.2.11
 langchain-community==0.2.10
 langchain-text-splitters==0.2.2
 faiss-cpu==1.8.0.post1
-httpx==0.27.0
+httpx==0.28.1
 
 # Symbolic math
 sympy==1.12.1
