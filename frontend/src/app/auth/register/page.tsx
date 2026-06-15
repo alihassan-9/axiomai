@@ -1,16 +1,19 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { apiError } from "@/lib/api";
 import { useAuth } from "@/stores/auth";
-import { Button, Card, ErrorNote, Input, Label } from "@/components/ui";
+import { signInWithGoogle } from "@/utils/supabase/client";
+import { ErrorNote } from "@/components/ui";
+import { AuthShell, Field, SubmitButton, fieldClass } from "@/components/auth-shell";
 
 export default function RegisterPage() {
   const router = useRouter();
   const register = useAuth((s) => s.register);
   const [form, setForm] = useState({ org: "", name: "", email: "", password: "" });
+  const [show, setShow] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -36,43 +39,40 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4">
-      <Card className="w-full max-w-md p-8">
-        <h1 className="text-lg font-semibold">Create your workspace</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          You&apos;ll be the organisation admin and can invite your team later.
-        </p>
-        <form onSubmit={onSubmit} className="mt-6 space-y-4">
-          <div>
-            <Label htmlFor="org">Organisation name</Label>
-            <Input id="org" required value={form.org} onChange={update("org")} placeholder="Acme Accounting LLP" />
+    <AuthShell mode="register" onGoogle={async () => {
+      try { await signInWithGoogle(); } catch { setError("Couldn't start Google sign-in. Try again."); }
+    }}>
+      <form onSubmit={onSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Organisation">
+            <input required value={form.org} onChange={update("org")}
+              className={fieldClass} placeholder="Acme Accounting" />
+          </Field>
+          <Field label="Full name">
+            <input required value={form.name} onChange={update("name")}
+              className={fieldClass} placeholder="Jane Doe" />
+          </Field>
+        </div>
+        <Field label="Work email">
+          <input type="email" required value={form.email} onChange={update("email")}
+            className={fieldClass} placeholder="name@example.com" />
+        </Field>
+        <Field label="Password">
+          <div className="relative">
+            <input type={show ? "text" : "password"} required minLength={8} value={form.password}
+              onChange={update("password")}
+              className={`${fieldClass} pr-11`} placeholder="At least 8 characters" />
+            <button type="button" onClick={() => setShow((s) => !s)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+              aria-label={show ? "Hide password" : "Show password"}>
+              {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
           </div>
-          <div>
-            <Label htmlFor="name">Your full name</Label>
-            <Input id="name" required value={form.name} onChange={update("name")} placeholder="Jane Doe" />
-          </div>
-          <div>
-            <Label htmlFor="email">Work email</Label>
-            <Input id="email" type="email" required value={form.email} onChange={update("email")}
-              placeholder="you@company.com" />
-          </div>
-          <div>
-            <Label htmlFor="password">Password (min 8 chars)</Label>
-            <Input id="password" type="password" required minLength={8} value={form.password}
-              onChange={update("password")} placeholder="••••••••" />
-          </div>
-          <ErrorNote message={error} />
-          <Button type="submit" className="w-full" disabled={busy}>
-            {busy ? "Creating…" : "Create workspace"}
-          </Button>
-        </form>
-        <p className="mt-4 text-center text-sm text-zinc-500">
-          Already registered?{" "}
-          <Link href="/auth/login" className="font-medium text-brand-600 hover:underline">
-            Sign in
-          </Link>
-        </p>
-      </Card>
-    </div>
+        </Field>
+
+        <ErrorNote message={error} />
+        <SubmitButton busy={busy} idle="Create workspace" busyLabel="Creating…" />
+      </form>
+    </AuthShell>
   );
 }

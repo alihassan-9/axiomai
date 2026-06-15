@@ -4,10 +4,15 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
 
 import redis.asyncio as aioredis
+import structlog
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from redis.exceptions import RedisError
 
 from app.core.config import settings
+from app.core.redis_client import make_async_redis
+
+log = structlog.get_logger(__name__)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -17,7 +22,7 @@ _redis: aioredis.Redis | None = None
 def get_redis() -> aioredis.Redis:
     global _redis
     if _redis is None:
-        _redis = aioredis.from_url(settings.redis_url, decode_responses=True)
+        _redis = make_async_redis()
     return _redis
 
 
@@ -62,17 +67,30 @@ def decode_token(token: str, expected_type: Literal["access", "refresh"]) -> dic
 
 
 async def revoke_token(payload: dict[str, Any]) -> None:
-    """Add a token's jti to the Redis denylist until its natural expiry."""
+    """Add a token's jti to the Redis denylist until its natural expiry.
+
+    Best-effort: if Redis is unreachable the logout simply isn't enforced
+    server-side (the short-lived token still expires on its own) rather than
+    failing the request."""
     jti = payload.get("jti")
     exp = payload.get("exp")
     if not jti or not exp:
         return
     ttl = max(1, int(exp - datetime.now(timezone.utc).timestamp()))
-    await get_redis().setex(f"revoked:{jti}", ttl, "1")
+    try:
+        await get_redis().setex(f"revoked:{jti}", ttl, "1")
+    except RedisError as exc:
+        log.warning("token_revoke_failed_redis_down", error=str(exc))
 
 
 async def is_token_revoked(payload: dict[str, Any]) -> bool:
     jti = payload.get("jti")
     if not jti:
         return True
-    return bool(await get_redis().exists(f"revoked:{jti}"))
+    try:
+        return bool(await get_redis().exists(f"revoked:{jti}"))
+    except RedisError as exc:
+        # Fail open: a Redis outage shouldn't 500 every authenticated request.
+        # Access tokens are short-lived (15 min), so the exposure window is small.
+        log.warning("revocation_check_skipped_redis_down", error=str(exc))
+        return False

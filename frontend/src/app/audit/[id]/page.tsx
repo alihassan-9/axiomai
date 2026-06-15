@@ -1,10 +1,14 @@
 "use client";
 
 import { use, useMemo } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, Circle, Download, RefreshCw, XCircle } from "lucide-react";
+import {
+  ArrowLeft, Calculator, CheckCircle2, Circle, Download, FileText, ListChecks,
+  Receipt, RefreshCw, ShieldCheck, Sparkles, XCircle,
+} from "lucide-react";
 import { api } from "@/lib/api";
-import type { Audit, ProgressEvent } from "@/lib/types";
+import type { Audit, Policy, ProgressEvent } from "@/lib/types";
 import { useAuditStream } from "@/lib/use-audit-stream";
 import { formatMoney } from "@/lib/utils";
 import { AppShell, PageHeader } from "@/components/app-shell";
@@ -65,7 +69,7 @@ function InvoicePanel({ audit }: { audit: Audit }) {
   return (
     <div className="space-y-4">
       <Card className="overflow-hidden">
-        <CardHeader title="Source document" />
+        <CardHeader title="Source document" icon={FileText} />
         {preview.data ? (
           <iframe src={preview.data} className="h-[480px] w-full" title="Invoice PDF" />
         ) : (
@@ -74,7 +78,7 @@ function InvoicePanel({ audit }: { audit: Audit }) {
       </Card>
       {invoice && (
         <Card>
-          <CardHeader title="Extracted invoice"
+          <CardHeader title="Extracted invoice" icon={Receipt}
             subtitle={`${audit.findings_json.extraction_method ?? ""} · confidence ${
               Math.round((audit.findings_json.extraction_confidence ?? 0) * 100)}%`} />
           <div className="p-5 text-sm">
@@ -116,11 +120,33 @@ function InvoicePanel({ audit }: { audit: Audit }) {
 function FindingsPanel({ audit }: { audit: Audit }) {
   const math = audit.findings_json.math_findings ?? [];
   const policy = audit.findings_json.policy_findings ?? [];
+  const invoice = audit.findings_json.invoice;
+
+  const policies = useQuery({
+    queryKey: ["policies"],
+    queryFn: async () => (await api.get<Policy[]>("/compliance/policies")).data,
+  });
+  const activePolicies = policies.data?.filter((p) => p.is_active).length ?? 0;
+
+  const confidence = Math.round((audit.findings_json.extraction_confidence ?? 0) * 100);
+  const durationMs = audit.started_at && audit.completed_at
+    ? new Date(audit.completed_at).getTime() - new Date(audit.started_at).getTime()
+    : null;
+
+  const stats: [string, string][] = [
+    ["Extraction method", audit.findings_json.extraction_method || "—"],
+    ["Confidence", `${confidence}%`],
+    ["Line items", String(invoice?.line_items.length ?? 0)],
+    ["Math checks", audit.findings_json.math_passed ? "All passed" : `${math.length} issue(s)`],
+    ["Policy findings", String(policy.length)],
+    ["Detected savings", formatMoney(audit.savings_amount)],
+    ...(durationMs !== null ? [["Processing time", `${(durationMs / 1000).toFixed(1)}s`] as [string, string]] : []),
+  ];
 
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader title="Mathematical verification"
+        <CardHeader title="Mathematical verification" icon={Calculator}
           subtitle="Every relationship recomputed symbolically"
           action={audit.findings_json.math_passed
             ? <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">VERIFIED</Badge>
@@ -146,10 +172,21 @@ function FindingsPanel({ audit }: { audit: Audit }) {
       </Card>
 
       <Card>
-        <CardHeader title="Policy compliance" subtitle="Structured rules + RAG over your policy documents" />
+        <CardHeader title="Policy compliance" icon={ShieldCheck} subtitle="Structured rules + RAG over your policy documents" />
         <div className="space-y-3 p-5">
           {policy.length === 0 ? (
-            <p className="text-sm text-emerald-700">✓ No policy violations detected.</p>
+            activePolicies === 0 ? (
+              <div className="rounded-lg border border-amber-100 bg-amber-50/60 p-3 text-xs leading-relaxed text-amber-900">
+                No active policy rules are configured, so nothing was enforced for this audit. Add spend
+                caps, vendor limits, or category rules under{" "}
+                <Link href="/compliance" className="font-semibold underline">Compliance</Link>{" "}
+                to flag cases like this invoice’s software line, then re-run.
+              </div>
+            ) : (
+              <p className="text-sm text-emerald-700">
+                ✓ Checked against {activePolicies} active polic{activePolicies === 1 ? "y" : "ies"} — no violations.
+              </p>
+            )
           ) : policy.map((f, i) => (
             <div key={i} className="rounded-lg border border-amber-100 bg-amber-50/60 p-3">
               <div className="flex items-center justify-between">
@@ -178,9 +215,21 @@ function FindingsPanel({ audit }: { audit: Audit }) {
         </Card>
       )}
 
+      <Card>
+        <CardHeader title="Audit summary" icon={ListChecks} subtitle="Verification at a glance" />
+        <div className="grid grid-cols-2 gap-3 p-5">
+          {stats.map(([label, value]) => (
+            <div key={label} className="rounded-2xl border border-zinc-100 bg-zinc-50/70 p-4">
+              <div className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">{label}</div>
+              <div className="mt-1 text-base font-bold tracking-tight text-brand-900">{value}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
       {audit.narrative && (
         <Card>
-          <CardHeader title="Audit narrative" subtitle="Explainable summary for finance managers" />
+          <CardHeader title="Audit narrative" icon={Sparkles} subtitle="Explainable summary for finance managers" />
           <p className="whitespace-pre-wrap p-5 text-sm leading-relaxed text-zinc-700">{audit.narrative}</p>
         </Card>
       )}
@@ -205,25 +254,40 @@ export default function AuditViewerPage({ params }: { params: Promise<{ id: stri
   }
   const a = audit.data;
 
+  async function downloadExport(format: "csv" | "pdf") {
+    const res = await api.get(`/audit/${a.id}/export?format=${format}`, { responseType: "blob" });
+    const url = URL.createObjectURL(res.data as Blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `audit-${a.id.slice(0, 8)}.${format}`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <AppShell>
       <PageHeader
-        title={`Audit ${a.id.slice(0, 8)}`}
+        title="Audit" accent={a.id.slice(0, 8)}
         subtitle={a.status === "completed" ? "Completed" : a.status === "failed" ? `Failed: ${a.error ?? ""}` : "Running…"}
         action={
           <div className="flex gap-2">
+            <Link href="/upload">
+              <Button variant="secondary" className="text-xs">
+                <ArrowLeft className="h-3.5 w-3.5" /> Back to assistant
+              </Button>
+            </Link>
             <Button variant="secondary" className="text-xs"
               onClick={() => api.post(`/audit/${a.id}/rerun`).then((r) => { window.location.href = `/audit/${r.data.id}`; })}>
               <RefreshCw className="h-3.5 w-3.5" /> Re-run
             </Button>
             {a.status === "completed" && (
               <>
-                <a href={`/api/v1/audit/${a.id}/export?format=csv`} target="_blank">
-                  <Button variant="secondary" className="text-xs"><Download className="h-3.5 w-3.5" /> CSV</Button>
-                </a>
-                <a href={`/api/v1/audit/${a.id}/export?format=pdf`} target="_blank">
-                  <Button variant="secondary" className="text-xs"><Download className="h-3.5 w-3.5" /> PDF</Button>
-                </a>
+                <Button variant="secondary" className="text-xs" onClick={() => void downloadExport("csv")}>
+                  <Download className="h-3.5 w-3.5" /> CSV
+                </Button>
+                <Button variant="secondary" className="text-xs" onClick={() => void downloadExport("pdf")}>
+                  <Download className="h-3.5 w-3.5" /> PDF
+                </Button>
               </>
             )}
           </div>
@@ -238,7 +302,7 @@ export default function AuditViewerPage({ params }: { params: Promise<{ id: stri
       ) : a.status === "failed" ? (
         <Card><EmptyState title="Audit failed" hint={a.error ?? "Unknown error"} /></Card>
       ) : (
-        <div className="grid gap-6 xl:grid-cols-2">
+        <div className="grid items-start gap-6 xl:grid-cols-2">
           <InvoicePanel audit={a} />
           <FindingsPanel audit={a} />
         </div>

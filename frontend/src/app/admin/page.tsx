@@ -51,7 +51,7 @@ export default function AdminPage() {
 
   return (
     <AppShell>
-      <PageHeader title="Admin Panel" subtitle="Team, usage, and the immutable system audit trail" />
+      <PageHeader title="Admin" accent="panel" subtitle="Team, usage, and the immutable system audit trail" />
 
       <div className="grid gap-4 md:grid-cols-4">
         {[

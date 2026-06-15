@@ -7,6 +7,7 @@ import { api, apiError } from "@/lib/api";
 import type { Policy, PolicyRule } from "@/lib/types";
 import { AppShell, PageHeader } from "@/components/app-shell";
 import { Badge, Button, Card, CardHeader, EmptyState, ErrorNote, Input, Label, Spinner } from "@/components/ui";
+import { Select } from "@/components/select";
 
 const EMPTY_RULE: PolicyRule = {
   field: "grand_total", operator: "gt", value: 500, severity: "high",
@@ -18,7 +19,16 @@ const FIELD_OPTIONS = [
   "line_items[].line_total", "line_items[].quantity", "line_items[].unit_price",
 ];
 const OPERATORS = ["gt", "gte", "lt", "lte", "eq", "neq", "contains", "in", "not_in"] as const;
+const OPERATOR_LABELS: Record<string, string> = {
+  gt: "is greater than", gte: "is greater than or equal", lt: "is less than",
+  lte: "is less than or equal", eq: "equals", neq: "does not equal",
+  contains: "contains", in: "is in list", not_in: "is not in list",
+};
 const SEVERITIES = ["info", "low", "medium", "high", "critical"] as const;
+
+const FIELD_OPTS = FIELD_OPTIONS.map((f) => ({ value: f, label: f }));
+const OPERATOR_OPTS = OPERATORS.map((o) => ({ value: o, label: OPERATOR_LABELS[o] }));
+const SEVERITY_OPTS = SEVERITIES.map((s) => ({ value: s, label: s[0].toUpperCase() + s.slice(1) }));
 
 function RuleEditor({ rule, onChange, onRemove }: {
   rule: PolicyRule; onChange: (r: PolicyRule) => void; onRemove: () => void;
@@ -32,18 +42,13 @@ function RuleEditor({ rule, onChange, onRemove }: {
       <div className="grid gap-3 md:grid-cols-4">
         <div>
           <Label>Field</Label>
-          <select className="w-full rounded-lg border border-zinc-300 bg-white px-2 py-2 text-sm"
-            value={rule.field} onChange={(e) => onChange({ ...rule, field: e.target.value })}>
-            {FIELD_OPTIONS.map((f) => <option key={f}>{f}</option>)}
-          </select>
+          <Select value={rule.field} options={FIELD_OPTS}
+            onChange={(v) => onChange({ ...rule, field: v })} />
         </div>
         <div>
           <Label>Violates when</Label>
-          <select className="w-full rounded-lg border border-zinc-300 bg-white px-2 py-2 text-sm"
-            value={rule.operator}
-            onChange={(e) => onChange({ ...rule, operator: e.target.value as PolicyRule["operator"] })}>
-            {OPERATORS.map((o) => <option key={o}>{o}</option>)}
-          </select>
+          <Select value={rule.operator} options={OPERATOR_OPTS}
+            onChange={(v) => onChange({ ...rule, operator: v as PolicyRule["operator"] })} />
         </div>
         <div>
           <Label>Value</Label>
@@ -56,11 +61,8 @@ function RuleEditor({ rule, onChange, onRemove }: {
         </div>
         <div>
           <Label>Severity</Label>
-          <select className="w-full rounded-lg border border-zinc-300 bg-white px-2 py-2 text-sm"
-            value={rule.severity}
-            onChange={(e) => onChange({ ...rule, severity: e.target.value as PolicyRule["severity"] })}>
-            {SEVERITIES.map((s) => <option key={s}>{s}</option>)}
-          </select>
+          <Select value={rule.severity} options={SEVERITY_OPTS}
+            onChange={(v) => onChange({ ...rule, severity: v as PolicyRule["severity"] })} />
         </div>
       </div>
       <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -121,7 +123,8 @@ export default function CompliancePage() {
 
   return (
     <AppShell>
-      <PageHeader title="Policy Manager" subtitle="Structured compliance rules applied to every audit" />
+      <div className="mx-auto max-w-3xl">
+      <PageHeader title="Policy" accent="Manager" subtitle="Structured compliance rules applied to every audit" />
 
       <Card>
         <CardHeader title="Create policy" subtitle="Rules describe the violation condition" />
@@ -196,6 +199,7 @@ export default function CompliancePage() {
         ) : (
           <Card><EmptyState title="No policies yet" hint="Create structured rules above, or upload policy PDFs in the Upload Center for RAG" /></Card>
         )}
+      </div>
       </div>
     </AppShell>
   );

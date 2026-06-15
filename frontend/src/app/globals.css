@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fafafa;
-  --foreground: #18181b;
+  --background: #eef0f5;
+  --foreground: #1c1b2a;
 }
 
 @theme inline {
@@ -10,22 +10,65 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-serif);
 
-  --color-brand-50: #eef4ff;
-  --color-brand-100: #dce7fd;
-  --color-brand-200: #c0d4fb;
-  --color-brand-300: #94b8f8;
-  --color-brand-400: #6193f2;
-  --color-brand-500: #3d6eec;
-  --color-brand-600: #274fe0;
-  --color-brand-700: #1f3cce;
-  --color-brand-800: #2033a7;
-  --color-brand-900: #1f3084;
-  --color-brand-950: #171f50;
+  /* Soft "cloudy" slate brand ramp — muted, premium, light */
+  --color-brand-50: #f6f7f9;
+  --color-brand-100: #ebedf2;
+  --color-brand-200: #d8dbe4;
+  --color-brand-300: #b9bfce;
+  --color-brand-400: #9097ad;
+  --color-brand-500: #6e7590;
+  --color-brand-600: #5a6178;
+  --color-brand-700: #494f63;
+  --color-brand-800: #3e4254;
+  --color-brand-900: #353845;
+  --color-brand-950: #24262f;
 }
 
 body {
-  background: var(--background);
+  /* Calm, near-white canvas with a faint slate tint so white cards read crisply */
+  background:
+    radial-gradient(1100px 600px at 100% -5%, #e9ebf2 0%, transparent 55%),
+    linear-gradient(180deg, #f3f4f7 0%, #eceef2 100%);
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
+
+/* Reusable frosted-glass surface */
+@utility glass {
+  border: 1px solid rgb(255 255 255 / 0.6);
+  background-color: rgb(255 255 255 / 0.55);
+  box-shadow: 0 8px 30px rgb(91 60 139 / 0.08);
+  backdrop-filter: blur(16px);
+}
+
+/* Crisp elevated card surfaces — clean white with a fine border + real depth */
+@utility neu {
+  background-color: #ffffff;
+  border: 1px solid rgba(226, 224, 238, 0.9);
+  box-shadow: 0 1px 2px rgba(20, 18, 45, 0.04), 0 14px 30px -16px rgba(20, 18, 45, 0.20);
+}
+@utility neu-sm {
+  background-color: #ffffff;
+  border: 1px solid rgba(226, 224, 238, 0.9);
+  box-shadow: 0 1px 2px rgba(20, 18, 45, 0.05);
+}
+@utility neu-inset {
+  background-color: #f4f4f9;
+  border: 1px solid rgba(224, 223, 236, 0.8);
+}
+
+/* Entrance + live animations */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rise { animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.75); }
+}
+.pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }

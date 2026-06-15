@@ -29,6 +29,11 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class OAuthRequest(BaseModel):
+    """A Supabase access token, exchanged for an app token pair."""
+    access_token: str
+
+
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str

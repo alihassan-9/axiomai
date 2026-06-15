@@ -48,7 +48,7 @@ def _embed(texts: list[str]) -> tuple[np.ndarray, str]:
     return np.asarray([_hash_embed(t) for t in texts], dtype=np.float32), "hash-fallback"
 
 
-def chunk_text(text: str, chunk_size: int = 512, overlap: int = 64) -> list[str]:
+def chunk_text(text: str, chunk_size: int = 400, overlap: int = 60) -> list[str]:
     """Token-approximate recursive splitting (LangChain splitter, word-based fallback)."""
     try:
         from langchain_text_splitters import RecursiveCharacterTextSplitter

@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.v1 import admin, audit, auth, compliance, documents, reports
+from app.api.v1 import admin, audit, auth, chat, compliance, documents, reports
 from app.core.config import settings
 from app.core.security import get_redis
 
@@ -54,5 +54,5 @@ async def health():
 
 
 for router in (auth.router, documents.router, audit.router, compliance.router,
-               reports.router, admin.router):
+               reports.router, admin.router, chat.router):
     app.include_router(router, prefix=settings.api_v1_prefix)
