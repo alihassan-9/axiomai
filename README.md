@@ -1,4 +1,4 @@
-# Axiom AI
+[# Axiom AI
 
 AI-powered B2B SaaS that audits vendor invoices automatically: **neural extraction** (OCR + LLM)
 reads messy documents, **symbolic math** (SymPy/Decimal) recomputes every figure exactly, and
@@ -153,3 +153,4 @@ Orchestrated by a Google ADK `SequentialAgent` (control flow only — streams pr
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — system design, data flows, schema
 - [docs/API.md](docs/API.md) — all ~34 REST endpoints
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — production deployment, scaling, security checklist
+](https://github.com/alihassan-9/axiomai)
