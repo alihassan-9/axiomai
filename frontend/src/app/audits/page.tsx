@@ -24,7 +24,7 @@ export default function AuditsPage() {
 
   return (
     <AppShell>
-      <PageHeader title="Audits" subtitle="Every audit run across your organisation" />
+      <PageHeader title="All" accent="audits" subtitle="Every audit run across your organisation" />
       <Card>
         {query.isLoading ? (
           <div className="flex justify-center py-10"><Spinner /></div>

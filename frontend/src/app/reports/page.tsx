@@ -1,13 +1,14 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Download } from "lucide-react";
+import { Banknote, Download, FileCheck2, ShieldCheck } from "lucide-react";
 import {
-  Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { api } from "@/lib/api";
 import type { Summary, TrendPoint } from "@/lib/types";
-import { formatMoney } from "@/lib/utils";
+import { cn, formatMoney } from "@/lib/utils";
 import { AppShell, PageHeader } from "@/components/app-shell";
 import { Button, Card, CardHeader, EmptyState, Spinner, Table } from "@/components/ui";
 
@@ -33,6 +34,22 @@ export default function ReportsPage() {
       (await api.get<{ total_savings: number; items: SavingsItem[] }>("/reports/savings")).data,
   });
 
+  // Cumulative savings across every day of the 90-day window, so the chart
+  // draws a continuous line instead of a single dot when data is sparse.
+  const savingsCurve = useMemo(() => {
+    const byDate = new Map((trends.data ?? []).map((p) => [p.date.slice(0, 10), p.savings]));
+    const days = Array.from({ length: 90 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (89 - i));
+      return d.toISOString().slice(0, 10);
+    });
+    return days.reduce<{ date: string; savings: number }[]>((acc, key) => {
+      const prev = acc.length ? acc[acc.length - 1].savings : 0;
+      acc.push({ date: key, savings: prev + (byDate.get(key) ?? 0) });
+      return acc;
+    }, []);
+  }, [trends.data]);
+
   async function downloadCsv() {
     const response = await api.post("/reports/export?days=90", null, { responseType: "blob" });
     const url = URL.createObjectURL(response.data as Blob);
@@ -45,46 +62,34 @@ export default function ReportsPage() {
 
   return (
     <AppShell>
-      <PageHeader title="Reports" subtitle="Analytics across audits, violations, and recovered value"
+      <PageHeader title="Reports &" accent="insights" subtitle="Analytics across audits, violations, and recovered value"
         action={<Button variant="secondary" onClick={() => void downloadCsv()}>
           <Download className="h-4 w-4" /> Export CSV
         </Button>} />
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="p-5">
-          <div className="text-xs text-zinc-500">Completed audits</div>
-          <div className="mt-1 text-2xl font-semibold">{summary.data?.completed_audits ?? "…"}</div>
-        </Card>
-        <Card className="p-5">
-          <div className="text-xs text-zinc-500">Compliance score</div>
-          <div className="mt-1 text-2xl font-semibold">{summary.data ? `${summary.data.compliance_score}%` : "…"}</div>
-        </Card>
-        <Card className="p-5">
-          <div className="text-xs text-zinc-500">Total recovered</div>
-          <div className="mt-1 text-2xl font-semibold text-emerald-700">
-            {summary.data ? formatMoney(summary.data.total_savings) : "…"}
-          </div>
-        </Card>
+        <StatTile icon={FileCheck2} label="Completed audits"
+          value={summary.data?.completed_audits ?? "…"} />
+        <StatTile icon={ShieldCheck} label="Compliance score"
+          value={summary.data ? `${summary.data.compliance_score}%` : "…"} />
+        <StatTile icon={Banknote} label="Total recovered" accent
+          value={summary.data ? formatMoney(summary.data.total_savings) : "…"} />
       </div>
 
       <Card className="mt-6">
-        <CardHeader title="Savings over time" subtitle="Last 90 days" />
+        <CardHeader title="Savings over time" subtitle="Cumulative recovered · last 90 days" />
         <div className="h-72 p-4">
           {trends.data?.length ? (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={trends.data}>
-                <defs>
-                  <linearGradient id="savingsFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#059669" stopOpacity={0.25} />
-                    <stop offset="100%" stopColor="#059669" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v) => formatMoney(Number(v))} />
-                <Area type="monotone" dataKey="savings" stroke="#059669" strokeWidth={2} fill="url(#savingsFill)" />
-              </AreaChart>
+              <LineChart data={savingsCurve} margin={{ top: 8, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef0ee" />
+                <XAxis dataKey="date" tickFormatter={(d) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  tick={{ fontSize: 11, fill: "#a1a1aa" }} axisLine={false} tickLine={false} minTickGap={40} />
+                <YAxis tick={{ fontSize: 11, fill: "#a1a1aa" }} axisLine={false} tickLine={false} />
+                <Tooltip cursor={false} formatter={(v) => formatMoney(Number(v))}
+                  labelFormatter={(d) => new Date(String(d)).toLocaleDateString("en-US", { month: "short", day: "numeric" })} />
+                <Line type="natural" dataKey="savings" stroke="#6e7590" strokeWidth={3} dot={false} activeDot={{ r: 5 }} />
+              </LineChart>
             </ResponsiveContainer>
           ) : (
             <EmptyState title="No data yet" />
@@ -105,7 +110,7 @@ export default function ReportsPage() {
                     {item.audit_id.slice(0, 12)}…
                   </a>
                 </td>
-                <td className="px-4 py-3 font-medium text-emerald-700">{formatMoney(item.savings)}</td>
+                <td className="px-4 py-3 font-medium text-brand-700">{formatMoney(item.savings)}</td>
                 <td className="px-4 py-3 text-zinc-500">{item.completed_at?.slice(0, 10) ?? "—"}</td>
               </tr>
             ))}
@@ -115,5 +120,23 @@ export default function ReportsPage() {
         )}
       </Card>
     </AppShell>
+  );
+}
+
+function StatTile({ icon: Icon, label, value, accent }: {
+  icon: React.ElementType; label: string; value: React.ReactNode; accent?: boolean;
+}) {
+  return (
+    <Card className="p-5">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-400">{label}</span>
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
+      <div className={cn("mt-3 text-3xl font-bold tracking-tight", accent ? "text-brand-700" : "text-brand-900")}>
+        {value}
+      </div>
+    </Card>
   );
 }

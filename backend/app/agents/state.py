@@ -1,4 +1,8 @@
-"""Shared state passed between agents in the LangGraph pipeline."""
+"""Shared state passed between agents — this is the Google ADK session state.
+
+ADK keeps it under ``session.state["audit"]``; each workflow agent reads it,
+mutates its slice, and writes it back via an event ``state_delta``.
+"""
 from typing import Any, TypedDict
 
 
@@ -13,7 +17,6 @@ class AuditState(TypedDict, total=False):
     policies: list[dict[str, Any]]  # active structured policies (rule_json + ids)
 
     # Orchestrator
-    plan: list[str]
     retries: int
 
     # Extraction agent

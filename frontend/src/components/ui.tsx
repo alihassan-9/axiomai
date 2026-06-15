@@ -10,17 +10,17 @@ export function Button({
   className, variant = "primary", disabled, ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
   const variants: Record<ButtonVariant, string> = {
-    primary: "bg-brand-600 text-white hover:bg-brand-700 shadow-sm",
-    secondary: "bg-white text-zinc-800 border border-zinc-300 hover:bg-zinc-50",
+    primary: "bg-gradient-to-r from-brand-600 to-brand-800 text-white shadow-lg shadow-brand-700/25 hover:opacity-95",
+    secondary: "bg-white text-brand-900 border border-zinc-200 shadow-sm hover:bg-zinc-50",
     ghost: "text-zinc-600 hover:bg-zinc-100",
-    danger: "bg-red-600 text-white hover:bg-red-700",
+    danger: "bg-red-600 text-white shadow-lg shadow-red-600/25 hover:bg-red-700",
   };
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium",
-        "transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1",
-        "disabled:opacity-50 disabled:pointer-events-none",
+        "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold",
+        "transition-all focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-1",
+        "active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none",
         variants[variant], className,
       )}
       disabled={disabled}
@@ -31,18 +31,29 @@ export function Button({
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("rounded-xl border border-zinc-200 bg-white shadow-sm", className)} {...props} />
+    <div className={cn(
+      "rounded-2xl border border-zinc-200/70 bg-white",
+      "shadow-[0_1px_2px_rgba(20,18,45,0.04),0_18px_40px_-24px_rgba(20,18,45,0.22)]",
+      className,
+    )} {...props} />
   );
 }
 
-export function CardHeader({ title, subtitle, action }: {
-  title: string; subtitle?: string; action?: React.ReactNode;
+export function CardHeader({ title, subtitle, action, icon: Icon }: {
+  title: string; subtitle?: string; action?: React.ReactNode; icon?: React.ElementType;
 }) {
   return (
-    <div className="flex items-start justify-between border-b border-zinc-100 px-5 py-4">
-      <div>
-        <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
-        {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
+    <div className="flex items-start justify-between gap-4 border-b border-zinc-100 px-6 py-4">
+      <div className="flex items-start gap-3">
+        {Icon && (
+          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+            <Icon className="h-4 w-4" />
+          </span>
+        )}
+        <div>
+          <h3 className="text-[15px] font-semibold tracking-tight text-brand-900">{title}</h3>
+          {subtitle && <p className="mt-0.5 text-xs text-zinc-500">{subtitle}</p>}
+        </div>
       </div>
       {action}
     </div>
@@ -55,8 +66,9 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
       <input
         ref={ref}
         className={cn(
-          "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm",
-          "placeholder:text-zinc-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100",
+          "w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-brand-900",
+          "placeholder:text-zinc-400 transition-colors focus:border-brand-400 focus:bg-white",
+          "focus:outline-none focus:ring-4 focus:ring-brand-100",
           className,
         )}
         {...props}
@@ -66,7 +78,7 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
 );
 
 export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) {
-  return <label className={cn("mb-1.5 block text-xs font-medium text-zinc-700", className)} {...props} />;
+  return <label className={cn("mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-zinc-400", className)} {...props} />;
 }
 
 export function Badge({ severity, children, className }: {

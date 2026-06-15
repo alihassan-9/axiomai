@@ -1,17 +1,20 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { apiError } from "@/lib/api";
 import { useAuth } from "@/stores/auth";
-import { Button, Card, ErrorNote, Input, Label } from "@/components/ui";
+import { signInWithGoogle } from "@/utils/supabase/client";
+import { ErrorNote } from "@/components/ui";
+import { AuthShell, Field, SubmitButton, fieldClass } from "@/components/auth-shell";
 
 export default function LoginPage() {
   const router = useRouter();
   const login = useAuth((s) => s.login);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [show, setShow] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -29,33 +32,35 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4">
-      <Card className="w-full max-w-md p-8">
-        <h1 className="text-lg font-semibold">Welcome back</h1>
-        <p className="mt-1 text-sm text-zinc-500">Sign in to your audit workspace</p>
-        <form onSubmit={onSubmit} className="mt-6 space-y-4">
-          <div>
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" required value={email}
-              onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" />
+    <AuthShell mode="login" onGoogle={async () => {
+      try { await signInWithGoogle(); } catch { setError("Couldn't start Google sign-in. Try again."); }
+    }}>
+      <form onSubmit={onSubmit} className="space-y-4">
+        <Field label="Email">
+          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
+            className={fieldClass} placeholder="name@example.com" />
+        </Field>
+        <Field label="Password">
+          <div className="relative">
+            <input type={show ? "text" : "password"} required value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={`${fieldClass} pr-11`} placeholder="••••••••••••" />
+            <button type="button" onClick={() => setShow((s) => !s)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+              aria-label={show ? "Hide password" : "Show password"}>
+              {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
           </div>
-          <div>
-            <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" required value={password}
-              onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
-          </div>
-          <ErrorNote message={error} />
-          <Button type="submit" className="w-full" disabled={busy}>
-            {busy ? "Signing in…" : "Sign in"}
-          </Button>
-        </form>
-        <p className="mt-4 text-center text-sm text-zinc-500">
-          No account?{" "}
-          <Link href="/auth/register" className="font-medium text-brand-600 hover:underline">
-            Create a workspace
-          </Link>
-        </p>
-      </Card>
-    </div>
+        </Field>
+
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-600">
+          <input type="checkbox" className="h-4 w-4 rounded border-zinc-300 text-brand-600 accent-brand-600" defaultChecked />
+          Keep me signed in
+        </label>
+
+        <ErrorNote message={error} />
+        <SubmitButton busy={busy} idle="Log in" busyLabel="Signing in…" />
+      </form>
+    </AuthShell>
   );
 }

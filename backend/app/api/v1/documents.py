@@ -1,7 +1,7 @@
 """API 2 — Document Ingestion (/api/v1/documents)."""
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +11,7 @@ from app.core.deps import CurrentUser, get_current_user, require_analyst
 from app.models import Document, DocumentStatus, DocumentType, Extraction
 from app.schemas import DocumentOut, ExtractionOut
 from app.services import audit_trail
-from app.services.storage import storage
+from app.services.storage import storage, verify_file_token
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -105,9 +105,26 @@ async def get_document(doc_id: str, user: CurrentUser = Depends(get_current_user
 @router.get("/{doc_id}/preview")
 async def preview_document(doc_id: str, user: CurrentUser = Depends(get_current_user),
                            db: AsyncSession = Depends(get_db)):
-    """Short-lived presigned URL for in-browser PDF rendering."""
+    """Short-lived signed URL for in-browser PDF rendering."""
     document = await _get_owned_document(doc_id, user, db)
     return {"url": storage.presigned_url(document.s3_key, minutes=15)}
+
+
+@router.get("/file/{token}")
+async def serve_file(token: str):
+    """Serve a locally-stored file via its signed token (local storage backend).
+
+    Auth is the token itself (so it works in an <iframe> without headers); the key
+    and expiry are signed with the app secret."""
+    key = verify_file_token(token)
+    if not key:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Invalid or expired link")
+    try:
+        data = storage.download(key)
+    except OSError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+    media_type = getattr(storage, "content_type", lambda _k: "application/octet-stream")(key)
+    return Response(content=data, media_type=media_type)
 
 
 @router.get("/{doc_id}/extracted", response_model=ExtractionOut)

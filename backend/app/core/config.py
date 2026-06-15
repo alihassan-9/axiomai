@@ -6,14 +6,22 @@ production). Defaults below are development-only conveniences.
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
+    @field_validator("*", mode="before")
+    @classmethod
+    def _strip_whitespace(cls, value: object) -> object:
+        # Env values often arrive with stray whitespace (e.g. cmd's
+        # `set VAR=true && ...` yields "true "), which breaks bool/int parsing.
+        return value.strip() if isinstance(value, str) else value
+
     # --- App ---
-    app_name: str = "Neuro-Symbolic Financial Auditor"
+    app_name: str = "Axiom AI"
     environment: Literal["development", "staging", "production"] = "development"
     api_v1_prefix: str = "/api/v1"
     cors_origins: str = "http://localhost:3000"
@@ -26,6 +34,9 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     # --- Auth ---
+    # Supabase is used only to verify OAuth (Google) sessions; app issues its own JWTs.
+    supabase_url: str = ""
+    supabase_publishable_key: str = ""
     jwt_secret_key: str = "dev-only-change-me"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 15
@@ -34,7 +45,10 @@ class Settings(BaseSettings):
     # --- Rate limiting ---
     rate_limit_per_minute: int = 100
 
-    # --- Object storage (MinIO / S3) ---
+    # --- Object storage ---
+    # "local" = filesystem (no server needed); "minio" = MinIO/S3.
+    storage_backend: str = "local"
+    storage_dir: str = "./storage/files"
     s3_endpoint: str = "localhost:9000"
     s3_access_key: str = "minioadmin"
     s3_secret_key: str = "minioadmin"
@@ -52,7 +66,6 @@ class Settings(BaseSettings):
     ollama_llm_model: str = "llama3.1"
     ollama_embedding_model: str = "bge-m3"
     llm_enabled: bool = True
-    anthropic_api_key: str = ""  # optional cloud fallback for complex reasoning
     vector_store_dir: str = "./storage/vector_store"
 
     # --- Uploads ---

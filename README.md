@@ -1,4 +1,4 @@
-# Neuro-Symbolic Financial Auditor
+# Axiom AI
 
 AI-powered B2B SaaS that audits vendor invoices automatically: **neural extraction** (OCR + LLM)
 reads messy documents, **symbolic math** (SymPy/Decimal) recomputes every figure exactly, and
@@ -15,7 +15,7 @@ and an explainable narrative.
 | Frontend | Next.js 16 (App Router, React 19, Tailwind v4), TanStack Query, Zustand, Recharts |
 | API | FastAPI (Python 3.11, async SQLAlchemy 2.0), JWT + RBAC, SSE streaming |
 | Workers | Celery + Redis (audit pipeline, policy indexing) |
-| AI | LangGraph 5-agent state machine, Ollama (Llama 3.1 + bge-m3), SymPy, FAISS, Tesseract |
+| AI | Google ADK 5-agent pipeline, Ollama (Llama 3.1 + bge-m3), SymPy, FAISS, Tesseract |
 | Data | PostgreSQL 16, Redis 7, MinIO (S3), per-org FAISS vector indexes |
 | Ops | Docker Compose, GitHub Actions CI, structured logging |
 
@@ -70,20 +70,83 @@ policy violation / messy layout) and 2 policy PDFs. Upload the policies first, c
 
 Offline pipeline check without any services: `python scripts/smoke_pipeline.py`.
 
+## Evaluation
+
+```bash
+cd backend && python scripts/evaluate.py     # offline, deterministic — no LLM/DB needed
+```
+
+Runs 10 test cases over the demo invoices + targeted unit checks and regenerates
+`submission/05_Prompts_and_Evaluation/expected_vs_actual_results.{csv,md}`. Expected output:
+
+```
+PASS 9/10  |  KNOWN-LIMITATION 1  |  FAIL 0
+TC2  Line-item overcharge … expected $45.00 overcharge … actual $45.00   [PASS]
+TC5  Messy free-text layout … deterministic parser extracted 0 line items [KNOWN-LIMITATION]
+```
+
+Test-case definitions, the prompt library, and error analysis live in
+[`submission/05_Prompts_and_Evaluation/`](submission/05_Prompts_and_Evaluation/).
+
 ## Tests
 
 ```bash
-cd backend && pytest          # 20 unit tests: math audit, rule engine, extraction
+cd backend && pytest          # unit tests: math audit, rule engine, extraction
 cd frontend && npx tsc --noEmit && npm run lint
 ```
 
+## Project structure
+
+```
+GenAI Project/
+├── backend/                 # FastAPI service (Python 3.11)
+│   ├── app/
+│   │   ├── agents/          # 5-agent pipeline: extraction, math_audit, policy_compliance,
+│   │   │                    #   correction, report (+ orchestrator, state)
+│   │   ├── ai/              # llm.py (Ollama), vector_store.py (FAISS RAG), pdf_text.py
+│   │   ├── api/v1/          # auth, documents, audit, compliance, reports, admin
+│   │   ├── core/            # config, database, security, deps, redis_client
+│   │   ├── models/          # SQLAlchemy ORM (8 multi-tenant tables)
+│   │   ├── schemas/         # Pydantic request/response models
+│   │   └── services/        # events (SSE), audit_trail, storage
+│   ├── scripts/             # init_db, generate_demo_data, smoke_pipeline, evaluate
+│   ├── demo_data/           # 5 demo invoices + 2 policy PDFs
+│   └── .env.example
+├── frontend/                # Next.js 16 app (React 19, Tailwind v4)
+│   └── src/{app,components,lib,stores,utils}/
+├── docs/                    # ARCHITECTURE.md, API.md, DEPLOYMENT.md
+├── submission/              # Capstone deliverables (report, slides, prompts, evaluation)
+└── docker-compose.yml
+```
+
+## Configuration
+
+All settings come from environment variables — see [`backend/.env.example`](backend/.env.example)
+(backend) and [`frontend/.env.local.example`](frontend/.env.local.example) (browser Supabase
+keys for Google sign-in). **No real secrets are committed**; copy the examples and fill in your
+own. Key choices: `REDIS_URL=memory://` for zero-infra dev; `DATABASE_URL` for local Docker
+Postgres or a Supabase pooler; leave `SUPABASE_URL` blank to disable Google sign-in.
+
+## Known issues & troubleshooting
+
+| Symptom | Cause / fix |
+|---------|-------------|
+| `Connect call failed … :5432` | Postgres not reachable. Start `docker compose up postgres -d`, or use a Supabase **session pooler** URL (the direct `db.<ref>.supabase.co` host is IPv6-only and fails on many networks). |
+| `… asyncpg … Invalid` on Supabase | URL-encode `@` in the password as `%40` and keep the `+asyncpg` driver + `?ssl=require`. |
+| `revocation_check_skipped_redis_down` spam | Redis isn't running. Set `REDIS_URL=memory://` (in-process) or start `docker compose up redis -d`. |
+| `error reading bcrypt version` | Harmless with `bcrypt==4.0.1` (pinned); older 4.1+ breaks passlib 1.7.4's version probe. |
+| Google sign-in returns to login | In Supabase → Auth → URL Configuration add `http://localhost:3000/auth/callback` and set Site URL `http://localhost:3000`. |
+| Messy invoice extracts 0 line items | Expected offline — start Ollama (`ollama pull llama3.1`) so the LLM extraction path runs. |
+
 ## The 5-agent pipeline
 
-1. **Orchestrator** — LangGraph state machine; routes, retries, streams progress via Redis → SSE
-2. **Extraction** — pdfplumber/Tesseract + LLM, grounding-confidence scoring against source text
-3. **Math Audit** — exact SymPy/Decimal recomputation; one-cent discrepancies flagged with deltas
-4. **Policy Compliance** — deterministic rule engine + FAISS RAG over uploaded policy PDFs
-5. **Correction & Explainer** — re-extracts low-confidence fields when math fails; writes narrative
+Orchestrated by a Google ADK `SequentialAgent` (control flow only — streams progress via Redis → SSE):
+
+1. **Document Intelligence (Extraction)** — pdfplumber/Tesseract + LLM, grounding-confidence scoring against source text
+2. **Math Audit** — exact SymPy/Decimal recomputation; one-cent discrepancies flagged with deltas (no LLM)
+3. **Policy Compliance** — deterministic rule engine + FAISS RAG over uploaded policy PDFs
+4. **Correction** — re-extracts low-confidence fields only when math fails; the symbolic audit re-runs as arbiter
+5. **Report** — executive summary / explainable narrative (LLM with deterministic template fallback)
 
 ## Documentation
 

@@ -1,0 +1,11 @@
+TC,Scenario,Technique,Input,Expected,Actual,Status
+TC1,Clean invoice — arithmetic correct,Symbolic math audit,clean_invoice.pdf,"0 discrepancies, $0.00 overcharge","0 discrepancies, $0.00 overcharge",PASS
+TC2,Line-item overcharge (8x30=240 billed 285),Symbolic math audit,overcharge_invoice.pdf,"1 line discrepancy, $45.00 overcharge","1 line discrepancy, $45.00 overcharge",PASS
+TC3,Tax miscalculation (380x8%=30.40 billed 39.14),Symbolic math audit,tax_error_invoice.pdf,"tax discrepancy, $8.74 overcharge","tax discrepancy, $8.74 overcharge",PASS
+TC4,Policy: line over $500 cap (software $660),Policy rule engine (deterministic),policy_violation_invoice.pdf + $500 cap rule,"math OK, 1 policy violation flagged","math OK, 1 policy violation flagged",PASS
+TC5,Messy free-text layout (no table grid),Extraction (LLM fallback path),"messy_invoice.pdf (offline, no LLM)",LLM extracts 2 line items,deterministic parser extracted 0 line items,KNOWN-LIMITATION
+TC6,Rounding tolerance (<= $0.01 ignored),Symbolic math audit,1x100.00 stated 100.005,0 discrepancies,0 discrepancies,PASS
+TC7,Grand-total mismatch (100 vs billed 120),Symbolic math audit,"subtotal 100 + tax 0, total 120","critical finding, delta +20.00, $20.00 overcharge","critical finding, delta +20.00, $20.00 overcharge",PASS
+TC8,Source grounding of extracted numbers,Grounding confidence score,clean_invoice.pdf,confidence >= 0.90,confidence 1.00,PASS
+TC9,Hallucination guard rejects ungrounded values,Grounding gate (Correction agent),fabricated values absent from source (vs 1.00 baseline),confidence < 0.50 -> rejected,confidence 0.00 -> rejected,PASS
+TC10,Invoice-level conditional rule (when vendor matches),Policy rule engine (deterministic),tax_error_invoice total 419.14 + $400 cap rule,1 violation flagged,1 violation flagged,PASS

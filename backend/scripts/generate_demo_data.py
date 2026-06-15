@@ -1,11 +1,16 @@
-"""Generate the demo dataset: 5 mock invoices + 2 policy PDFs into ./demo_data.
+"""Generate the demo dataset: 10 mock invoices + 2 policy PDFs into ./demo_data.
 
 Invoices:
-  1. clean_invoice.pdf          — arithmetic correct, policy compliant
-  2. overcharge_invoice.pdf     — line total inflated by $45.00 (math error)
-  3. tax_error_invoice.pdf      — tax computed at the wrong rate
-  4. policy_violation_invoice.pdf — software purchase over the $500 cap
-  5. messy_invoice.pdf          — odd layout to exercise the LLM extractor
+  1.  clean_invoice.pdf            — arithmetic correct, policy compliant
+  2.  overcharge_invoice.pdf       — line total inflated by $45.00 (math error)
+  3.  tax_error_invoice.pdf        — tax computed at the wrong rate (+$8.74)
+  4.  policy_violation_invoice.pdf — software purchase over the $500 cap
+  5.  messy_invoice.pdf            — odd layout to exercise the LLM extractor
+  6.  meal_over_cap_invoice.pdf    — meal event over the $400 cap (policy)
+  7.  subtotal_mismatch_invoice.pdf— stated subtotal ≠ Σ line totals (+$50)
+  8.  grandtotal_error_invoice.pdf — grand total ≠ subtotal + tax (+$50, critical)
+  9.  bulk_hardware_invoice.pdf    — hardware over $1,000 needing a PO (policy)
+  10. consulting_invoice.pdf       — large clean invoice, >$2,500 dual-approval (policy)
 
 Run:  python scripts/generate_demo_data.py
 """
@@ -144,6 +149,40 @@ def main() -> None:
         text.textLine(line)
     pdf.drawText(text)
     pdf.save()
+
+    # 6. Meal over the $400 event cap (math correct, policy violation)
+    draw_invoice(os.path.join(OUT_DIR, "meal_over_cap_invoice.pdf"),
+                 "Meridian Catering Co", "INV-2026-6001", "2026-06-02",
+                 [Line("Annual gala dinner - 40 guests", "Meals", 1, 520.00, 520.00)],
+                 subtotal=520.00, tax_rate=0.08, tax_amount=41.60, grand_total=561.60)
+
+    # 7. Subtotal mismatch: line totals sum to 309.90 but subtotal states 359.90 (+$50)
+    draw_invoice(os.path.join(OUT_DIR, "subtotal_mismatch_invoice.pdf"),
+                 "Northwind Office Supplies", "INV-2026-7001", "2026-06-04",
+                 [Line("A4 paper (case)", "Office", 10, 24.99, 249.90),
+                  Line("Heavy-duty stapler", "Office", 5, 12.00, 60.00)],
+                 subtotal=359.90, tax_rate=0.08, tax_amount=28.79, grand_total=388.69)
+
+    # 8. Grand-total error: subtotal+tax = 481.50 but total states 531.50 (+$50, critical)
+    draw_invoice(os.path.join(OUT_DIR, "grandtotal_error_invoice.pdf"),
+                 "Apex Industrial Parts", "INV-2026-8001", "2026-06-06",
+                 [Line("Steel pipe 8in (length)", "Hardware", 10, 45.00, 450.00)],
+                 subtotal=450.00, tax_rate=0.07, tax_amount=31.50, grand_total=531.50)
+
+    # 9. Bulk hardware over $1,000 (math correct, needs PO per policy)
+    draw_invoice(os.path.join(OUT_DIR, "bulk_hardware_invoice.pdf"),
+                 "Apex Industrial Parts", "INV-2026-9001", "2026-06-09",
+                 [Line("Industrial air compressor", "Hardware", 1, 1200.00, 1200.00),
+                  Line("Mounting kit", "Hardware", 4, 85.00, 340.00)],
+                 subtotal=1540.00, tax_rate=0.07, tax_amount=107.80, grand_total=1647.80)
+
+    # 10. Large clean consulting invoice (math correct; >$2,500 triggers dual-approval policy)
+    draw_invoice(os.path.join(OUT_DIR, "consulting_invoice.pdf"),
+                 "Initech Consulting", "INV-2026-1010", "2026-06-11",
+                 [Line("Senior consulting (hrs)", "Services", 20, 150.00, 3000.00),
+                  Line("Implementation (hrs)", "Services", 10, 120.00, 1200.00),
+                  Line("Annual support plan", "Services", 1, 500.00, 500.00)],
+                 subtotal=4700.00, tax_rate=0.0, tax_amount=0.00, grand_total=4700.00)
 
     # Policy documents for RAG
     draw_policy(os.path.join(OUT_DIR, "expense_policy.pdf"),

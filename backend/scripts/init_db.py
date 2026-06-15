@@ -4,11 +4,16 @@ Creates all tables if the schema is empty, then stamps Alembic head so future
 schema changes flow through `alembic revision --autogenerate` + `alembic upgrade`.
 Safe to run repeatedly (used by the Docker entrypoint).
 """
-import sqlalchemy as sa
+import os
+import sys
 
-from app.core.config import settings
-from app.core.database import Base
-import app.models  # noqa: F401
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+import sqlalchemy as sa  # noqa: E402
+
+from app.core.config import settings  # noqa: E402
+from app.core.database import Base  # noqa: E402
+import app.models  # noqa: E402,F401
 
 
 def main() -> None:

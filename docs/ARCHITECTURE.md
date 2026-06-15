@@ -4,12 +4,12 @@
 
 ```
 Browser (Next.js 16 SPA/SSR)
-   │  /api/v1/* proxied by Next rewrites (Kong/ingress in prod)
+   │  /api/v1/* proxied by Next rewrites (reverse proxy in prod)
    ▼
 FastAPI (async)  ──── JWT auth · RBAC · rate limit · org scoping
    │ enqueue                                │ SSE (Redis pub/sub)
    ▼                                        ▼
-Celery worker ── LangGraph 5-agent pipeline ── progress events
+Celery worker ── Google ADK 5-agent pipeline ── progress events
    │
    ├── PostgreSQL 16   (8 tables, multi-tenant via org_id)
    ├── Redis 7         (broker, cache, rate limit, pub/sub, token denylist)
@@ -28,8 +28,9 @@ backend/
                  extractions, audits, violations, policies, audit_log)
     schemas/     Pydantic request/response contracts
     api/v1/      auth, documents, audit, compliance, reports, admin routers
-    agents/      orchestrator (LangGraph), extraction, math_audit,
-                 policy_compliance, correction — pure functions over AuditState
+    agents/      orchestrator (Google ADK SequentialAgent) + 5 agents:
+                 extraction, math_audit, policy_compliance, correction, report
+                 — pure functions over AuditState, one responsibility each
     ai/          pdf_text (pdfplumber/OCR), llm (Ollama client), vector_store (FAISS)
     services/    storage (MinIO), events (Redis pub/sub), audit_trail,
                  audit_runner (worker-side DB orchestration)
@@ -49,8 +50,11 @@ frontend/
 
 1. `POST /audit/run` validates org ownership, inserts `audits` row, commits, dispatches Celery task.
 2. Worker downloads the PDF from MinIO, extracts text (pdfplumber → Tesseract fallback).
-3. LangGraph runs: extract → math_audit → policy_check → correct_explain.
-   Each node publishes `audit:{id}` progress events to Redis.
+3. Google ADK runs: extraction → math_audit → policy_check → correction → report.
+   A `SequentialAgent` (supervisor) drives five workflow sub-agents sharing the
+   ADK session state (= `AuditState`); each emits an event and publishes an
+   `audit:{id}` progress event to Redis. Correction (Agent 4) re-extracts only
+   when math fails on low-confidence data; Report (Agent 5) writes the narrative.
 4. `GET /audit/{id}/stream` (SSE) replays the last event then relays the channel live.
 5. Results persist: `extractions`, `violations` (one row per finding), `audits.findings_json`,
    `narrative`, `savings_amount`.

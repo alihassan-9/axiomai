@@ -1,13 +1,16 @@
-"""Agent 5 — Correction & Explainer.
+"""Agent 4 — Correction: guarded re-extraction when the math audit fails.
 
-Correction: when the math audit fails AND extraction confidence is low, the
-mismatch is more likely a misread digit than a vendor error. The agent re-runs
-a focused LLM extraction telling the model exactly which relations failed; if
-the corrected values make the arithmetic balance AND are grounded in the
-source text, the correction is accepted and the math audit re-runs.
+When math verification fails AND extraction confidence is low, the mismatch is
+more likely a misread digit than a real vendor error. This agent re-runs a
+focused LLM extraction telling the model exactly which arithmetic relations
+failed. The correction is accepted only if the new values are at least as
+grounded in the source text AND remove severe math findings (the symbolic audit
+is re-run to check). Hallucinated "fixes" are rejected — the deterministic math
+check stays the arbiter. The human-readable narrative is produced separately by
+the Report agent (Agent 5).
 
-Explainer: renders the human-readable audit narrative (LLM when available,
-deterministic template otherwise — the report is never empty).
+Inputs:  math_findings, invoice, raw_text, extraction_confidence (from state)
+Output:  state["corrected"] (bool); may replace state["invoice"]/["math_findings"]
 """
 import json
 
@@ -52,36 +55,6 @@ def _try_correction(state: AuditState) -> bool:
     return False
 
 
-def _template_narrative(state: AuditState) -> str:
-    invoice = state.get("invoice", {})
-    math_findings = state.get("math_findings", [])
-    policy_findings = state.get("policy_findings", [])
-    lines = [
-        f"Audit report for invoice {invoice.get('invoice_number') or '(no number)'} "
-        f"from {invoice.get('vendor') or 'unknown vendor'}.",
-        f"Extracted {len(invoice.get('line_items', []))} line items "
-        f"(method: {state.get('extraction_method', 'n/a')}, "
-        f"confidence: {state.get('extraction_confidence', 0):.0%}).",
-    ]
-    severe = [f for f in math_findings if f.get("severity") in ("high", "critical")]
-    if severe:
-        lines.append(f"Mathematical verification FAILED — {len(severe)} discrepancies:")
-        lines.extend(f"  • {f['citation']} (Δ {f.get('delta', 0):+.2f})" for f in severe)
-        if state.get("savings_amount", 0) > 0:
-            lines.append(f"Detected overcharge: ${state['savings_amount']:.2f}.")
-    else:
-        lines.append("All arithmetic verified correct via symbolic recomputation.")
-    if policy_findings:
-        lines.append(f"Policy compliance: {len(policy_findings)} violation(s):")
-        lines.extend(f"  • [{f.get('severity', 'medium').upper()}] {f.get('message', '')} ({f.get('location', '')})"
-                     for f in policy_findings)
-    else:
-        lines.append("No policy violations detected.")
-    if state.get("corrected"):
-        lines.append("Note: extraction was auto-corrected after failing initial verification.")
-    return "\n".join(lines)
-
-
 def run(state: AuditState) -> AuditState:
     needs_correction = (not state.get("math_passed", True)
                         and state.get("extraction_confidence", 1.0) < CONFIDENCE_THRESHOLD
@@ -89,12 +62,4 @@ def run(state: AuditState) -> AuditState:
     if needs_correction:
         state["retries"] = state.get("retries", 0) + 1
         state["corrected"] = _try_correction(state)
-
-    template = _template_narrative(state)
-    narrative = llm.generate(
-        "Rewrite this audit report as 2-3 clear professional paragraphs for a finance manager. "
-        "Keep every number exactly as stated. Do not add information.\n\n" + template,
-        system="You are a senior financial auditor writing an audit summary.",
-    )
-    state["narrative"] = (narrative or template).strip()
     return state
