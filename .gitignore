@@ -37,3 +37,8 @@ storage/
 Thumbs.db
 .idea/
 .vscode/
+
+# AI agent instruction files (local only)
+CLAUDE.md
+AGENTS.md
+.claude/
