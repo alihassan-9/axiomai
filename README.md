@@ -1,4 +1,20 @@
-[# Axiom AI
+<div align="center">
+
+# Axiom AI
+
+**Neuro-symbolic, multi-agent invoice auditing platform: OCR + LLM extraction, exact symbolic math, and RAG-based policy compliance with line-level citations.**
+
+![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
+![Google ADK](https://img.shields.io/badge/Google_ADK-5--agent_pipeline-4285F4?logo=google&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green)
+
+</div>
+
+---
 
 AI-powered B2B SaaS that audits vendor invoices automatically: **neural extraction** (OCR + LLM)
 reads messy documents, **symbolic math** (SymPy/Decimal) recomputes every figure exactly, and
@@ -154,3 +170,11 @@ Orchestrated by a Google ADK `SequentialAgent` (control flow only — streams pr
 - [docs/API.md](docs/API.md) — all ~34 REST endpoints
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — production deployment, scaling, security checklist
 ](https://github.com/alihassan-9/axiomai)
+
+## License
+
+Distributed under the MIT License. See [`LICENSE`](LICENSE) for details.
+
+## Author
+
+**Ali Hassan** · [LinkedIn](https://www.linkedin.com/in/ali-hassan-70bb9323b) · [GitHub](https://github.com/alihassan-9)
