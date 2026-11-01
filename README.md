@@ -2,7 +2,7 @@
 
 AI-powered B2B SaaS that audits vendor invoices automatically: **neural extraction** (OCR + LLM)
 reads messy documents, **symbolic math** (SymPy/Decimal) recomputes every figure exactly, and
-**RAG over your policy documents** flags compliance violations — all with line-level citations
+**RAG over your policy documents** flags compliance violations all with line-level citations
 and an explainable narrative.
 
 > Upload an invoice → 5-agent pipeline runs in seconds → "$45.00 overcharge on line 1:
@@ -23,12 +23,12 @@ and an explainable narrative.
 
 ```bash
 docker compose up --build -d
-# optional but recommended — enables LLM extraction, RAG evaluation, narratives:
+# optional but recommended enables LLM extraction, RAG evaluation, narratives:
 docker compose exec ollama ollama pull llama3.1
 docker compose exec ollama ollama pull bge-m3
 ```
 
-- App: http://localhost:3000 — register an organisation (first user becomes admin)
+- App: http://localhost:3000 register an organisation (first user becomes admin)
 - API docs (OpenAPI): http://localhost:8000/api/docs
 - MinIO console: http://localhost:9001 (minioadmin / minioadmin)
 
@@ -73,7 +73,7 @@ Offline pipeline check without any services: `python scripts/smoke_pipeline.py`.
 ## Evaluation
 
 ```bash
-cd backend && python scripts/evaluate.py     # offline, deterministic — no LLM/DB needed
+cd backend && python scripts/evaluate.py     # offline, deterministic no LLM/DB needed
 ```
 
 Runs 10 test cases over the demo invoices + targeted unit checks and regenerates
@@ -121,7 +121,7 @@ GenAI Project/
 
 ## Configuration
 
-All settings come from environment variables — see [`backend/.env.example`](backend/.env.example)
+All settings come from environment variables see [`backend/.env.example`](backend/.env.example)
 (backend) and [`frontend/.env.local.example`](frontend/.env.local.example) (browser Supabase
 keys for Google sign-in). **No real secrets are committed**; copy the examples and fill in your
 own. Key choices: `REDIS_URL=memory://` for zero-infra dev; `DATABASE_URL` for local Docker
@@ -136,21 +136,21 @@ Postgres or a Supabase pooler; leave `SUPABASE_URL` blank to disable Google sign
 | `revocation_check_skipped_redis_down` spam | Redis isn't running. Set `REDIS_URL=memory://` (in-process) or start `docker compose up redis -d`. |
 | `error reading bcrypt version` | Harmless with `bcrypt==4.0.1` (pinned); older 4.1+ breaks passlib 1.7.4's version probe. |
 | Google sign-in returns to login | In Supabase → Auth → URL Configuration add `http://localhost:3000/auth/callback` and set Site URL `http://localhost:3000`. |
-| Messy invoice extracts 0 line items | Expected offline — start Ollama (`ollama pull llama3.1`) so the LLM extraction path runs. |
+| Messy invoice extracts 0 line items | Expected offline start Ollama (`ollama pull llama3.1`) so the LLM extraction path runs. |
 
 ## The 5-agent pipeline
 
-Orchestrated by a Google ADK `SequentialAgent` (control flow only — streams progress via Redis → SSE):
+Orchestrated by a Google ADK `SequentialAgent` (control flow only streams progress via Redis → SSE):
 
-1. **Document Intelligence (Extraction)** — pdfplumber/Tesseract + LLM, grounding-confidence scoring against source text
-2. **Math Audit** — exact SymPy/Decimal recomputation; one-cent discrepancies flagged with deltas (no LLM)
-3. **Policy Compliance** — deterministic rule engine + FAISS RAG over uploaded policy PDFs
-4. **Correction** — re-extracts low-confidence fields only when math fails; the symbolic audit re-runs as arbiter
-5. **Report** — executive summary / explainable narrative (LLM with deterministic template fallback)
+1. **Document Intelligence (Extraction)** pdfplumber/Tesseract + LLM, grounding-confidence scoring against source text
+2. **Math Audit** exact SymPy/Decimal recomputation; one-cent discrepancies flagged with deltas (no LLM)
+3. **Policy Compliance** deterministic rule engine + FAISS RAG over uploaded policy PDFs
+4. **Correction** re-extracts low-confidence fields only when math fails; the symbolic audit re-runs as arbiter
+5. **Report** executive summary / explainable narrative (LLM with deterministic template fallback)
 
 ## Documentation
 
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — system design, data flows, schema
-- [docs/API.md](docs/API.md) — all ~34 REST endpoints
-- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — production deployment, scaling, security checklist
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) system design, data flows, schema
+- [docs/API.md](docs/API.md) all ~34 REST endpoints
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) production deployment, scaling, security checklist
 ](https://github.com/alihassan-9/axiomai)
