@@ -43,8 +43,8 @@ async def rate_limit(request: Request, call_next):
             if count > settings.rate_limit_per_minute:
                 return JSONResponse({"detail": "Rate limit exceeded"},
                                     status_code=status.HTTP_429_TOO_MANY_REQUESTS)
-        except Exception:
-            pass  # Redis outage must not take the API down
+        except Exception as exc:  # noqa: BLE001 - Redis outage must not take the API down
+            log.warning("rate_limit_check_failed", error=str(exc))
     return await call_next(request)
 
 

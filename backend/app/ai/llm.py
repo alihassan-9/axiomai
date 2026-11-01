@@ -33,7 +33,7 @@ def generate(prompt: str, system: str = "", json_mode: bool = False, timeout: fl
         response = httpx.post(f"{settings.ollama_base_url}/api/generate", json=body, timeout=timeout)
         response.raise_for_status()
         return response.json().get("response", "")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - any LLM failure degrades to the deterministic path
         log.warning("llm_unavailable", error=str(exc))
         return None
 
@@ -70,6 +70,6 @@ def embed(texts: list[str]) -> list[list[float]] | None:
                 response.raise_for_status()
                 vectors.append(response.json()["embedding"])
         return vectors
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - embeddings are optional; RAG is skipped on failure
         log.warning("embeddings_unavailable", error=str(exc))
         return None

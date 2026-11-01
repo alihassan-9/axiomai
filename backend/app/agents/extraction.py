@@ -8,8 +8,12 @@ their confidence penalised — this is what the Correction agent keys off.
 import re
 from typing import Any
 
+import structlog
+
 from app.agents.state import AuditState
 from app.ai import llm, pdf_text
+
+log = structlog.get_logger(__name__)
 
 _MONEY = r"\$?\s*([\d,]+\.?\d{0,4})"
 
@@ -87,8 +91,8 @@ def deterministic_parse(text: str, pdf_bytes: bytes | None = None,
         try:
             for table in pdf_text.extract_tables(pdf_bytes):
                 rows.extend([[c or "" for c in row] for row in table])
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001 - table parsing is best-effort; text parser follows
+            log.warning("table_extraction_failed", error=str(exc))
     items = _items_from_tables(rows) if rows else []
     if not items:
         items = _items_from_lines(lines)

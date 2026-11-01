@@ -3,7 +3,7 @@
 Runs inside the Celery worker (sync SQLAlchemy session) — kept separate from
 the async API layer on purpose.
 """
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from sqlalchemy import create_engine, select
@@ -33,14 +33,14 @@ def execute_audit(audit_id: str) -> None:
         document = db.get(Document, audit.doc_id)
         try:
             audit.status = AuditStatus.running
-            audit.started_at = datetime.now(timezone.utc)
+            audit.started_at = datetime.now(UTC)
             db.commit()
             _run(db, audit, document)
         except Exception as exc:
             log.exception("audit_failed", audit_id=audit_id)
             audit.status = AuditStatus.failed
             audit.error = str(exc)[:2000]
-            audit.completed_at = datetime.now(timezone.utc)
+            audit.completed_at = datetime.now(UTC)
             db.commit()
 
 
@@ -100,7 +100,7 @@ def _run(db: Session, audit: Audit, document: Document) -> None:
     audit.narrative = final.get("narrative", "")
     audit.savings_amount = final.get("savings_amount", 0.0)
     audit.status = AuditStatus.completed
-    audit.completed_at = datetime.now(timezone.utc)
+    audit.completed_at = datetime.now(UTC)
     db.commit()
 
 

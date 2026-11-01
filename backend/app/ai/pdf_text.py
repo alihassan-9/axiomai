@@ -2,6 +2,9 @@
 import io
 
 import pdfplumber
+import structlog
+
+log = structlog.get_logger(__name__)
 
 
 def extract_text(data: bytes, content_type: str) -> tuple[str, str]:
@@ -42,7 +45,8 @@ def _ocr_pdf(data: bytes) -> str:
     try:
         pages = convert_from_bytes(data, dpi=200)
         return "\n".join(pytesseract.image_to_string(p) for p in pages)
-    except Exception:
+    except Exception as exc:  # noqa: BLE001 - OCR is best-effort; empty text falls through
+        log.warning("ocr_pdf_failed", error=str(exc))
         return ""
 
 
@@ -54,5 +58,6 @@ def _ocr_image(data: bytes) -> str:
         return ""
     try:
         return pytesseract.image_to_string(Image.open(io.BytesIO(data)))
-    except Exception:
+    except Exception as exc:  # noqa: BLE001 - OCR is best-effort; empty text falls through
+        log.warning("ocr_image_failed", error=str(exc))
         return ""
